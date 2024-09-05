@@ -3,10 +3,10 @@
 # @Date:   2019-10-04 15:55:09
 # @Last Modified by:   fyr91
 # @Last Modified time: 2019-11-24 21:21:24
-import gym
+import gymnasium as gym
 from pysc2.env import sc2_env
 from pysc2.lib import actions, features, units
-from gym import spaces
+from gymnasium import spaces
 import logging
 import numpy as np
 
@@ -41,11 +41,11 @@ class DZBEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=0,
             high=64,
-            shape=(19,3),
+            shape=(19*3, ),
             dtype=np.uint8
             )
 
-    def reset(self):
+    def reset(self, seed = None):
         if self.env is None:
             self.init_env()
 
@@ -54,7 +54,7 @@ class DZBEnv(gym.Env):
         self.zerglings = []
 
         raw_obs = self.env.reset()[0]
-        return self.get_derived_obs(raw_obs)
+        return self.get_derived_obs(raw_obs), {}
 
     def init_env(self):
         args = {**self.default_settings, **self.kwargs}
@@ -81,14 +81,14 @@ class DZBEnv(gym.Env):
             self.zerglings.append(z)
             obs[i+13] = np.array([z.x, z.y, z[2]])
 
-        return obs
+        return obs.flatten()
 
     def step(self, action):
         raw_obs = self.take_action(action)
         reward = raw_obs.reward
         obs = self.get_derived_obs(raw_obs)
         # each step will set the dictionary to emtpy
-        return obs, reward, raw_obs.last(), {}
+        return obs, reward, raw_obs.last(), raw_obs.last(), {}
 
 
     def take_action(self, action):
