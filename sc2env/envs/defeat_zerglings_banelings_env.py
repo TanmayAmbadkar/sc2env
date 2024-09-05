@@ -61,6 +61,7 @@ class DZBEnv(gym.Env):
         self.env =  sc2_env.SC2Env(**args)
 
     def get_derived_obs(self, raw_obs):
+        
         obs = np.zeros((19,3), dtype=np.uint8)
         marines = self.get_units_by_type(raw_obs, units.Terran.Marine, 1)
         zerglings = self.get_units_by_type(raw_obs, units.Zerg.Zergling, 4)

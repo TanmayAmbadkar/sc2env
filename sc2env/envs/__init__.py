@@ -4,3 +4,4 @@
 # @Last Modified by:   fyr91
 # @Last Modified time: 2019-10-08 17:59:44
 from sc2env.envs.defeat_zerglings_banelings_env import DZBEnv
+from sc2env.envs.general_env import SC2GymWrapper
