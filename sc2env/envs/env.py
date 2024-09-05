@@ -82,10 +82,9 @@ class SC2GymWrapper(gym.Env):
         self.units = self.get_units(raw_obs)
         obs = np.zeros((self.max_units, 3), dtype=np.uint8)
         
-        for i, unit in enumerate(self.units[:self.max_units]):  # Limit to `max_units`
+        for i, unit in enumerate(self.units[:self.max_units]):
             obs[i] = np.array([unit.x, unit.y, unit.health])
         
-        # If there are fewer units than max_units, the rest of the array remains zero-padded.
         return obs.flatten()
 
     def step(self, action):
