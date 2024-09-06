@@ -1,8 +1,8 @@
 
 import gymnasium as gym
-from sc2env.envs import SC2GymWrapper
+from sc2env.env import SC2GymWrapper
 from stable_baselines3 import PPO
-from sc2_agent.sb3_utils import learn
+from rl.sb3_utils import learn
 from absl import flags
 
 
