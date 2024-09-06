@@ -19,6 +19,19 @@ def convert_to_race(race_str):
         # Default to 'random' if the race name is invalid
         logger.warning(f"Invalid race name '{race_str}', defaulting to 'random'.")
         return sc2_env.Race.random
+    
+def convert_to_difficulty(difficulty_str):
+    """
+    Converts a string to the corresponding sc2_env.difficulty value using getattr.
+    Defaults to sc2_env.Difficulty.easy if the race name is not found.
+    """
+    try:
+        # Dynamically get the Race attribute using getattr
+        return getattr(sc2_env.Difficulty, difficulty_str.lower())
+    except AttributeError:
+        # Default to 'random' if the race name is invalid
+        logger.warning(f"Invalid difficulty name '{difficulty_str}', defaulting to 'random'.")
+        return sc2_env.Difficulty.easy
 
 class SC2GymWrapper(gym.Env):
     metadata = {'render.modes': ['human']}
@@ -29,9 +42,9 @@ class SC2GymWrapper(gym.Env):
         self.player_race = player_race
         self.bot_race = bot_race
         self.bot_difficulty = bot_difficulty
-        # self.max_units = max_units  # Maximum number of units to consider in observation
-        self.kwargs = kwargs
         self.env = None
+        
+        
         self.init_env()
         
         # Placeholder for units
@@ -55,7 +68,7 @@ class SC2GymWrapper(gym.Env):
         settings = {
             'map_name': self.map_name,
             'players': [sc2_env.Agent(convert_to_race(self.player_race)),
-                        sc2_env.Bot(convert_to_race(self.bot_race), self.bot_difficulty)],
+                        sc2_env.Bot(convert_to_race(self.bot_race), convert_to_difficulty(self.bot_difficulty))],
             'agent_interface_format': features.AgentInterfaceFormat(
                 action_space=actions.ActionSpace.RAW,
                 use_raw_units=True,
@@ -110,14 +123,17 @@ class SC2GymWrapper(gym.Env):
 
         # Info dictionary containing the statistics
         info = {
+            "done": done,
             "is_success" : win,
             'enemies_killed': enemies_killed,
             'allies_killed': allies_killed,
             'remaining_allies': len(current_allies),
             'remaining_enemies': len(current_enemies)
         }
+        
+        self.info = info
 
-        return obs, reward, done, done, info
+        return obs, reward - allies_killed + enemies_killed, done, done, info
 
     def take_action(self, action):
         # Map actions dynamically based on context.
