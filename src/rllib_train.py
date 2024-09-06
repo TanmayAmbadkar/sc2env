@@ -2,7 +2,7 @@ import gymnasium as gym
 import ray
 from ray.rllib.algorithms import ppo
 from sc2env.rllib_env import SC2GymWrapperRllib
-from rl.sb3_utils import learn
+from src.rl.on_policy import learn
 from absl import flags
 import sys
 
