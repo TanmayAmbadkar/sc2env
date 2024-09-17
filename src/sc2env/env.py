@@ -4,6 +4,7 @@ from pysc2.lib import actions, features, units
 from gymnasium import spaces
 import logging
 import numpy as np
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ class SC2GymWrapper(gym.Env):
         self.observation_space = spaces.Box(
             low=0, 
             high=64, 
-            shape=(self.max_units * 3,),  # Each unit's (x, y, hp)
+            shape=(self.max_units * self.action_len,),  # Each unit's (x, y, hp)
             dtype=np.uint8
         )
         
@@ -78,6 +79,7 @@ class SC2GymWrapper(gym.Env):
         self.env = sc2_env.SC2Env(**settings)
         raw_obs = self.env.reset()[0]
         self.max_units = len(self.get_units(raw_obs))
+        self.action_len = len(self.get_units(raw_obs)[0])
         
 
     def reset(self, seed=None):
@@ -93,16 +95,17 @@ class SC2GymWrapper(gym.Env):
     def get_derived_obs(self, raw_obs):
         # Extract units dynamically based on the raw observation.
         self.units = self.get_units(raw_obs)
-        obs = np.zeros((self.max_units, 3), dtype=np.uint8)
+        obs = np.zeros((self.max_units, self.action_len), dtype=np.uint8)
         
-        for i, unit in enumerate(self.units[:self.max_units]):
-            obs[i] = np.array([unit.x, unit.y, unit.health])
+        for i, unit in enumerate(self.units):
+            
+            obs[i] = np.array(unit)
         
         return obs.flatten()
 
     def step(self, action):
         raw_obs = self.take_action(action)
-        reward = raw_obs.reward
+        reward = raw_obs.reward + raw_obs.observation['score_cumulative'][0]
         obs = self.get_derived_obs(raw_obs)
         done = raw_obs.last()
 
@@ -128,12 +131,13 @@ class SC2GymWrapper(gym.Env):
             'enemies_killed': enemies_killed,
             'allies_killed': allies_killed,
             'remaining_allies': len(current_allies),
-            'remaining_enemies': len(current_enemies)
+            'remaining_enemies': len(current_enemies),
+            'cumulative_score': raw_obs.observation['score_cumulative'][0]
         }
         
         self.info = info
 
-        return obs, reward - allies_killed + enemies_killed, done, done, info
+        return obs, reward, done, done, info
 
     def take_action(self, action):
         # Map actions dynamically based on context.

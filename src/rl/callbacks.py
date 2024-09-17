@@ -17,7 +17,8 @@ class TensorboardCallback(BaseCallback):
             'enemies_killed': 0,
             'allies_killed': 0,
             'remaining_allies': 0,
-            'remaining_enemies': 0
+            'remaining_enemies': 0,
+            'cumulative_score': 0
         }
         
         if info['done']:
@@ -26,6 +27,7 @@ class TensorboardCallback(BaseCallback):
             self.logger.record("game_stats/allies_killed", info['allies_killed'])
             self.logger.record("game_stats/remaining_allies", info['remaining_allies'])
             self.logger.record("game_stats/remaining_enemies", info['remaining_enemies'])
+            self.logger.record("game_stats/cumulative_score", info['cumulative_score'])
         
         
         return True

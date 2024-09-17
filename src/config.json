@@ -1,0 +1,8 @@
+{
+    "map_name": "Simple64",
+    "player_race": "terran",
+    "bot_race": "random",
+    "total_timesteps": 1000000,
+    "log_name": "ppo_1mil"
+  }
+  
