@@ -29,21 +29,24 @@ def main(argv):
 
     # Create the environment using the config parameters
     env = SC2GymWrapper(map_name=map_name, player_race=player_race, bot_race=bot_race)
+    
+    state, info = env.reset()
+    print(state)
 
-    # Initialize the PPO model
-    model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./ppo_run/")
+    # # Initialize the PPO model
+    # model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./ppo_run/")
 
-    # Define the callback for rewards
-    rewards_callback = TensorboardCallback()
+    # # Define the callback for rewards
+    # rewards_callback = TensorboardCallback()
 
-    # Start the learning process with the specified total timesteps
-    learn(
-        model,
-        total_timesteps=total_timesteps,
-        log_interval=1,
-        callback=rewards_callback,
-        tb_log_name=log_name,
-    )
+    # # Start the learning process with the specified total timesteps
+    # learn(
+    #     model,
+    #     total_timesteps=total_timesteps,
+    #     log_interval=1,
+    #     callback=rewards_callback,
+    #     tb_log_name=log_name,
+    # )
 
 if __name__ == "__main__":
     # Run the main function

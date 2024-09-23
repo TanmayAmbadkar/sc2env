@@ -73,7 +73,10 @@ class SC2GymWrapper(gym.Env):
             'agent_interface_format': features.AgentInterfaceFormat(
                 action_space=actions.ActionSpace.RAW,
                 use_raw_units=True,
-                raw_resolution=64),
+                raw_resolution=64, 
+                feature_dimensions=features.Dimensions(screen=84, minimap=64),
+                use_feature_units=True
+            ),
             'realtime': False
         }
         self.env = sc2_env.SC2Env(**settings)
@@ -87,7 +90,9 @@ class SC2GymWrapper(gym.Env):
             self.init_env()
         
         self.units = []
-        raw_obs = self.env.reset()[0]
+        raw_obs = self.env.reset()
+        print(raw_obs)
+        raw_obs = raw_obs[0]
         self.previous_allies = self.get_units(raw_obs, features.PlayerRelative.SELF)
         self.previous_enemies = self.get_units(raw_obs, features.PlayerRelative.ENEMY)
         return self.get_derived_obs(raw_obs), {}
