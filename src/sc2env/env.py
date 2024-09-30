@@ -49,49 +49,15 @@ class SC2GymWrapper(gym.Env):
         
         # Define observation space for Stable-Baselines3
         self.observation_space = spaces.Dict({
-            # Non-spatial features (General player information, control groups, etc.)
-            # 'non_spatial': spaces.Dict({
-            #     'player_data': spaces.Box(low=0, high=np.inf, shape=(11,), dtype=np.float32),  # Player info
-            #     # 'control_groups': spaces.Box(low=0, high=np.inf, shape=(10, 2), dtype=np.float32),  # Control groups
-            #     'available_actions': spaces.Box(low=0, high=np.inf, shape=(500,), dtype=np.int32),  # Available actions
-            #     # 'last_actions': spaces.Box(low=0, high=np.inf, shape=(10,), dtype=np.int32),  # Last actions
-            #     # 'action_results': spaces.Box(low=0, high=np.inf, shape=(1,), dtype=np.int32),  # Action result
-            #     # 'alerts': spaces.Box(low=0, high=np.inf, shape=(2,), dtype=np.int32),  # Alerts
-            # }),
             
-            'player_data': spaces.Box(low=0, high=np.inf, shape=(11,), dtype=np.float32),
+            
+            'player_data': spaces.Box(low=0, high=64, shape=(11,), dtype=np.float32),
             'available_actions': spaces.Box(low=0, high=np.inf, shape=(500,), dtype=np.int32),
             # Screen feature layers
             'screen': spaces.Box(low=0, high=np.inf, shape=(13, 64, 64), dtype=np.float32),
-            #     spaces.Dict({
-            #     'height_map': spaces.Box(low=0, high=255, shape=(64, 64), dtype=np.uint8),  # Terrain height on screen
-            #     'visibility': spaces.Box(low=0, high=3, shape=(64, 64), dtype=np.uint8),  # Visibility on screen (hidden, seen, visible)
-            #     'creep': spaces.Box(low=0, high=1, shape=(64, 64), dtype=np.uint8),  # Zerg creep presence on screen
-            #     'power': spaces.Box(low=0, high=1, shape=(64, 64), dtype=np.uint8),  # Protoss power fields on screen
-            #     'player_id': spaces.Box(low=0, high=np.inf, shape=(64, 64), dtype=np.uint8),  # Unit ownership on screen (player IDs)
-            #     'player_relative': spaces.Box(low=0, high=4, shape=(64, 64), dtype=np.uint8),  # Friendly vs hostile units on screen
-            #     'unit_type': spaces.Box(low=0, high=np.inf, shape=(64, 64), dtype=np.uint16),  # Unit type IDs on screen
-            #     'selected': spaces.Box(low=0, high=1, shape=(64, 64), dtype=np.uint8),  # Selected units on screen
-            #     'hit_points': spaces.Box(low=0, high=np.inf, shape=(64, 64), dtype=np.uint16),  # Hit points of units on screen
-            #     'energy': spaces.Box(low=0, high=np.inf, shape=(64, 64), dtype=np.uint16),  # Energy of units on screen
-            #     'shields': spaces.Box(low=0, high=np.inf, shape=(64, 64), dtype=np.uint16),  # Shields of protoss units on screen
-            #     'unit_density': spaces.Box(low=0, high=255, shape=(64, 64), dtype=np.uint8),  # Unit density per pixel
-            #     'unit_density_aa': spaces.Box(low=0, high=255, shape=(64, 64), dtype=np.uint8)  # Anti-aliased unit density
-                
-            # }),
             
             # Minimap feature layers
             'minimap': spaces.Box(low=0, high=np.inf, shape=(7, 64, 64), dtype=np.float32),
-            # spaces.Dict({
-            #     'height_map': spaces.Box(low=0, high=255, shape=(64, 64), dtype=np.uint8),  # Terrain height on minimap
-            #     'visibility': spaces.Box(low=0, high=3, shape=(64, 64), dtype=np.uint8),  # Visibility on minimap (hidden, seen, visible)
-            #     'creep': spaces.Box(low=0, high=1, shape=(64, 64), dtype=np.uint8),  # Zerg creep on minimap
-            #     'camera': spaces.Box(low=0, high=1, shape=(64, 64), dtype=np.uint8),  # Visible area on the minimap (camera location)
-            #     'player_id': spaces.Box(low=0, high=np.inf, shape=(64, 64), dtype=np.uint8),  # Unit ownership on minimap (player IDs)
-            #     'player_relative': spaces.Box(low=0, high=4, shape=(64, 64), dtype=np.uint8),  # Friendly vs hostile units on minimap
-            #     'selected': spaces.Box(low=0, high=1, shape=(64, 64), dtype=np.uint8),  # Selected units on minimap
-                
-            # })
         })
         
         # Define the action space (customize based on the actions available in your game)
@@ -99,17 +65,19 @@ class SC2GymWrapper(gym.Env):
         action_ids = [0, 1, 2, 3, 4, 6, 7, 12, 13, 42, 44, 50, 91, 183, 234, 309, 331, 332, 333, 334, 451, 452, 490]
 
         # some additional actions for minigames (not necessary to solve)
-        action_ids += [11, 71, 72, 73, 74, 79, 140, 168, 239, 261, 264, 269, 274, 318, 335, 336, 453, 477]
+        # action_ids += [11, 71, 72, 73, 74, 79, 140, 168, 239, 261, 264, 269, 274, 318, 335, 336, 453, 477]
 
-        self.action_space = spaces.MultiDiscrete([
-            len(action_ids),
-            64,
-            64
-        ])
-        
+        # Set up the action space based on available actions and their argument sizes
+        # action_ids = list(actions.FUNCTIONS)
         self.act_wrapper = ActionWrapper(64, action_ids)
-        
+
+        self.action_space = spaces.MultiDiscrete([len(action_ids), 64, 64])
+
         print(self.observation_space)
+        print(self.action_space)
+        
+        # self.act_wrapper = ActionWrapper(64, action_ids)
+        
 
     def init_env(self):
         settings = {
@@ -265,7 +233,7 @@ class SC2GymWrapper(gym.Env):
 
     def step(self, action):
         raw_obs = self.take_action(action)
-        reward = raw_obs.reward + raw_obs.observation['score_cumulative'][0]
+        reward = raw_obs.reward + raw_obs.observation['score_cumulative'][0]/1000
         obs = self.get_derived_obs(raw_obs)  # Use the structured observation
         done = raw_obs.last()
 
@@ -277,8 +245,9 @@ class SC2GymWrapper(gym.Env):
         enemies_killed = len(self.previous_enemies) - len(current_enemies)
 
         # Update previous unit lists for next step comparison
-        self.previous_allies = current_allies
-        self.previous_enemies = current_enemies
+        # self.previous_allies = current_allies
+        # self.previous_enemies = current_enemies
+        
 
         # Determine win/loss based on game status
         win = True if raw_obs.reward > 0 else False
@@ -399,18 +368,17 @@ class ActionWrapper:
         args = []
         
         fn_id = self.func_ids[fn_id_idx]
-        for arg_type in actions.FUNCTIONS[fn_id].args:
+        for arg_type in actions.RAW_FUNCTIONS[fn_id].args:
             arg_name = arg_type.name
-            if arg_name in self.args:
-                arg = [action[1], action[2]]
-                # pysc2 expects all args in their separate lists
-                if type(arg) not in [list, tuple]:
-                    arg = [arg]
-                # pysc2 expects spatial coords, but we have flattened => attempt to fix
-                if len(arg_type.sizes) == 1 and len(arg) > 1:
-                    arg = [arg[0] % len(arg_type.sizes)]
-                args.append(arg)
-            else:
-                args.append([defaults[arg_name]])
+            
+            arg = [action[1], action[2]]
+            # pysc2 expects all args in their separate lists
+            if type(arg) not in [list, tuple]:
+                arg = [arg]
+            # pysc2 expects spatial coords, but we have flattened => attempt to fix
+            if len(arg_type.sizes) == 1 and len(arg) > 1:
+                arg = [arg[0]*arg[1] % len(arg_type.sizes)]
+            args.append(arg)
+            
 
         return [actions.FunctionCall(fn_id, args)]
