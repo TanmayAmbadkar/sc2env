@@ -1,9 +1,8 @@
 {
-    "map_name": "Simple64",
+    "map_name": "Bridges2",
     "player_race": "terran",
-    "bot_race": "random",
+    "bot_race": "terran",
     "total_timesteps": 1000000,
-    "log_name": "ppo_1mil",
     "use_mask": true
   }
   

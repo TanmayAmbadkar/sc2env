@@ -26,8 +26,8 @@ def main(argv):
     player_race = config["player_race"]
     bot_race = config["bot_race"]
     total_timesteps = config["total_timesteps"]
-    log_name = config["log_name"]
     use_mask = config['use_mask']
+    log_name = f"ppo_{map_name}_{total_timesteps}"
 
     # Configure logger
     new_logger = configure("./ppo_run/", ["stdout", "csv", "tensorboard"])

@@ -21,7 +21,8 @@ SC2GymWrapper allows users to run StarCraft II scenarios as Gymnasium environmen
 ## Features
 
 - **Flexible Race Selection:** Use string parameters to select races dynamically (`"terran"`, `"zerg"`, `"protoss"`, `"random"`).
-- **Dynamic Observation Space:** Adjusts to the number of units in the game, providing relevant attributes (position, health).
+- **Dict Observation Space:** Uses minimap, screen and non-spatial features as observation space
+- **Multidiscrete Action Space:** Can take multi-discrete actions for function(args) based action in pysc2
 - **Comprehensive Statistics:** Outputs game statistics such as win/loss status, number of enemies killed, and number of allies killed.
 - **Compatibility with Gymnasium:** Easily integrates with Gymnasium-compatible reinforcement learning frameworks.
 
@@ -41,40 +42,15 @@ SC2GymWrapper allows users to run StarCraft II scenarios as Gymnasium environmen
 4. **Install PySC2 Maps:**
    Download the necessary PySC2 maps and place them in the appropriate directory as specified in the PySC2 documentation.
 
+4. **Modify sb3-contrib for maskable PPO:**
+   Modify MaskableActorCriticPolicy forward() by adding 
+   ```python
+   elif "available_actions" in obs:
+      action_masks = th.cat([obs['available_actions'].reshape(-1, ), th.ones(64).to(obs['available_actions'].device), th.ones(64).to(obs['available_actions'].device)])
+      distribution.apply_masking(action_masks)
+   ```
+   at line 140
+
 ## Usage
 
-Here’s a basic example to get started with SC2GymWrapper and stable-baselines3:
-
-```python
-
-import gymnasium as gym
-from sc2env.envs import SC2GymWrapper
-from stable_baselines3.common.env_checker import check_env
-from stable_baselines3 import PPO
-from absl import flags
-
-
-FLAGS = flags.FLAGS
-FLAGS([''])
-
-env = SC2GymWrapper(map_name="Simple64", player_race="terran", bot_race="random")
-# use ppo2 to learn and save the model when finished
-model = PPO("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=int(1e5))
-
-
-
-```
-
-## Parameters
-
-- `map_name` (str): The name of the StarCraft II map to play.
-- `player_race` (str): The race of the player agent (`"terran"`, `"zerg"`, `"protoss"`, `"random"`).
-- `bot_race` (str): The race of the bot opponent (`"terran"`, `"zerg"`, `"protoss"`, `"random"`).
-- `bot_difficulty` (sc2_env.Difficulty): The difficulty of the bot opponent (e.g., `sc2_env.Difficulty.hard`).
-
-## Environment Details
-
-- **Action Space:** Discrete actions mapped to unit movements and attacks.
-- **Observation Space:** A dynamic array capturing the position `(x, y)` and health of each unit up to the specified `max_units`.
-- **Info Dictionary:** Contains important statistics like `is_success`, `enemies_killed`, `allies_killed`, `remaining_allies`, and `remaining_enemies`.
+Modify config to add map, player race, bot race and total_timesteps

@@ -108,6 +108,7 @@ class SC2GymWrapper(gym.Env):
         raw_obs = self.env.reset()[0]  # Get the raw observation
         self.previous_allies = self.get_units(raw_obs, features.PlayerRelative.SELF)
         self.previous_enemies = self.get_units(raw_obs, features.PlayerRelative.ENEMY)
+        self.last_score = raw_obs.observation['score_cumulative'][0]
         
         # Return the structured observation
         return self.get_derived_obs(raw_obs), {}
@@ -210,7 +211,8 @@ class SC2GymWrapper(gym.Env):
     def step(self, action):
         raw_obs, rew_valid = self.take_action(action)
     
-        reward = raw_obs.reward + raw_obs.observation['score_cumulative'][0] + rew_valid
+        reward = raw_obs.reward + (raw_obs.observation['score_cumulative'][0] - self.last_score) + rew_valid
+        self.last_score = raw_obs.observation['score_cumulative'][0]
         obs = self.get_derived_obs(raw_obs)  # Use the structured observation
         done = raw_obs.last()
 
@@ -304,6 +306,7 @@ class ActionWrapper:
         reward = 0
         valid_action_mask = valid_action_mask[:len(self.func_ids)].astype(int)
         if not valid_action_mask[fn_id_idx]:
+            print("Invalid Action:", fn_id_idx, valid_action_mask)
             action[0] = np.random.choice(np.array(self.func_ids)[valid_action_mask])
             reward = -1000
             fn_id_idx = action[0]
