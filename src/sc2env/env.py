@@ -48,17 +48,7 @@ class SC2GymWrapper(gym.Env):
         self.init_env()
         
         # Define observation space for Stable-Baselines3
-        self.observation_space = spaces.Dict({
-            
-            
-            'player_data': spaces.Box(low=0, high=64, shape=(11,), dtype=np.float32),
-            'available_actions': spaces.Box(low=0, high=np.inf, shape=(500,), dtype=np.int32),
-            # Screen feature layers
-            'screen': spaces.Box(low=0, high=np.inf, shape=(13, 64, 64), dtype=np.float32),
-            
-            # Minimap feature layers
-            'minimap': spaces.Box(low=0, high=np.inf, shape=(7, 64, 64), dtype=np.float32),
-        })
+        
         
         # Define the action space (customize based on the actions available in your game)
         # self.action_space = spaces.Discrete(123)  # Adjust as needed based on action dimensions
@@ -72,6 +62,20 @@ class SC2GymWrapper(gym.Env):
         self.act_wrapper = ActionWrapper(64, action_ids)
 
         self.action_space = spaces.MultiDiscrete([len(action_ids), 64, 64])
+        
+        self.observation_space = spaces.Dict({
+            
+            
+            'player_data': spaces.Box(low=0, high=64, shape=(11,), dtype=np.float32),
+            'available_actions': spaces.Box(low=0, high=1, shape=(len(action_ids),), dtype=np.int32),
+            # Screen feature layers
+            'screen': spaces.Box(low=0, high=255, shape=(13, 64, 64), dtype=np.float32),
+            
+            # Minimap feature layers
+            'minimap': spaces.Box(low=0, high=255, shape=(7, 64, 64), dtype=np.float32),
+        })
+        
+        self.action_id_func_map = {action_id: count for action_id, count in enumerate(action_ids)}
 
         print(self.observation_space)
         print(self.action_space)
@@ -85,7 +89,7 @@ class SC2GymWrapper(gym.Env):
             'players': [sc2_env.Agent(convert_to_race(self.player_race)),
                         sc2_env.Bot(convert_to_race(self.bot_race), convert_to_difficulty(self.bot_difficulty))],
             'agent_interface_format': features.AgentInterfaceFormat(
-                action_space=actions.ActionSpace.RAW,
+                # action_space=actions.ActionSpace.RAW,
                 use_raw_units=True,
                 raw_resolution=64, 
                 feature_dimensions=features.Dimensions(screen=64, minimap=64),
@@ -192,13 +196,15 @@ class SC2GymWrapper(gym.Env):
             control_groups[i] = actual_control_groups[i]
 
         # Available actions (Padded with 0s or truncated to MAX_AVAILABLE_ACTIONS)
-        available_actions = np.zeros(MAX_AVAILABLE_ACTIONS, dtype=np.int32)
+        available_actions = np.zeros(len(self.action_id_func_map), dtype=np.int32)
         try:
             actual_available_actions = raw_obs.observation["available_actions"]
         except:
             actual_available_actions = []
-        for i in range(min(len(actual_available_actions), MAX_AVAILABLE_ACTIONS)):
-            available_actions[i] = actual_available_actions[i]
+        for i in range(len(actual_available_actions)):
+            
+            if actual_available_actions[i] in self.action_id_func_map:         
+                available_actions[self.action_id_func_map[actual_available_actions[i]]] = 1
 
         # Last actions (Padded with 0s or truncated to MAX_LAST_ACTIONS)
         last_actions = np.zeros(MAX_LAST_ACTIONS, dtype=np.int32)
@@ -233,7 +239,24 @@ class SC2GymWrapper(gym.Env):
 
     def step(self, action):
         raw_obs = self.take_action(action)
-        reward = raw_obs.reward + raw_obs.observation['score_cumulative'][0]/1000
+        
+        if raw_obs is None:
+            reward = -1000
+            obs = self.observation_space.sample()
+            done = True
+            info = {
+                "done": done,
+                "is_success": 0,
+                'enemies_killed': 0,
+                'allies_killed': 0,
+                'remaining_allies': 0,
+                'remaining_enemies': 0,
+                'cumulative_score': -1000
+            }
+            return obs, reward, done, done, info
+
+            
+        reward = raw_obs.reward + raw_obs.observation['score_cumulative'][0]
         obs = self.get_derived_obs(raw_obs)  # Use the structured observation
         done = raw_obs.last()
 
@@ -290,7 +313,10 @@ class SC2GymWrapper(gym.Env):
 
         
         action_mapped = self.act_wrapper(action)
-        raw_obs = self.env.step(action_mapped)[0]
+        try:
+            raw_obs = self.env.step(action_mapped)[0]
+        except:
+            raw_obs = None
         return raw_obs
 
     def move_unit(self, idx, direction):
@@ -368,7 +394,7 @@ class ActionWrapper:
         args = []
         
         fn_id = self.func_ids[fn_id_idx]
-        for arg_type in actions.RAW_FUNCTIONS[fn_id].args:
+        for arg_type in actions.FUNCTIONS[fn_id].args:
             arg_name = arg_type.name
             
             arg = [action[1], action[2]]
