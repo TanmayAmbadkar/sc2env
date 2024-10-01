@@ -2,6 +2,7 @@ import torch as th
 from stable_baselines3.common.utils import obs_as_tensor, safe_mean
 import numpy as np
 from gymnasium import spaces
+from sb3_contrib.common.maskable.utils import get_action_masks, is_masking_supported
 
 def learn(
         policy,
@@ -10,6 +11,7 @@ def learn(
         log_interval: int = 1,
         tb_log_name: str = "OnPolicyAlgorithm",
         reset_num_timesteps: bool = True,
+        use_masking: bool = True,
         progress_bar: bool = False,
     ):
         iteration = 0
@@ -27,7 +29,7 @@ def learn(
         assert policy.env is not None
 
         while policy.num_timesteps < total_timesteps:
-            continue_training = collect_rollouts(policy, policy.env, callback, policy.rollout_buffer, n_rollout_steps=policy.n_steps)
+            continue_training = collect_rollouts(policy, policy.env, callback, policy.rollout_buffer, n_rollout_steps=policy.n_steps, use_masking = use_masking)
 
             if not continue_training:
                 break
@@ -52,6 +54,7 @@ def collect_rollouts(
         callback,
         rollout_buffer,
         n_rollout_steps: int,
+        use_masking: bool = True,
     ) -> bool:
         """
         Collect experiences using the current policy and fill a ``RolloutBuffer``.
@@ -75,6 +78,10 @@ def collect_rollouts(
         # Sample new weights for the state dependent exploration
         if policy.use_sde:
             policy.policy.reset_noise(env.num_envs)
+                    
+        if use_masking and not is_masking_supported(env):
+            raise ValueError("Environment does not support action masking. Consider using ActionMasker wrapper")
+
 
         callback.on_rollout_start()
 
@@ -86,6 +93,12 @@ def collect_rollouts(
             with th.no_grad():
                 # Convert to pytorch tensor or to TensorDict
                 obs_tensor = obs_as_tensor(policy._last_obs, policy.device)
+                
+                if use_masking:
+                    action_masks = get_action_masks(env)
+
+                    actions, values, log_probs = policy.policy(obs_tensor, action_masks=action_masks)
+                
                 actions, values, log_probs = policy.policy(obs_tensor)
             actions = actions.cpu().numpy()
 
@@ -131,14 +144,25 @@ def collect_rollouts(
                         terminal_value = policy.policy.predict_values(terminal_obs)[0]  # type: ignore[arg-type]
                     rewards[idx] += policy.gamma * terminal_value
 
-            rollout_buffer.add(
-                policy._last_obs,  # type: ignore[arg-type]
-                actions,
-                rewards,
-                policy._last_episode_starts,  # type: ignore[arg-type]
-                values,
-                log_probs,
-            )
+            if use_masking:
+                rollout_buffer.add(
+                    policy._last_obs,  # type: ignore[arg-type]
+                    actions,
+                    rewards,
+                    policy._last_episode_starts,  # type: ignore[arg-type]
+                    values,
+                    log_probs,
+                    action_masks = action_masks
+                )
+            else:
+                rollout_buffer.add(
+                    policy._last_obs,  # type: ignore[arg-type]
+                    actions,
+                    rewards,
+                    policy._last_episode_starts,  # type: ignore[arg-type]
+                    values,
+                    log_probs,
+                )
             policy._last_obs = new_obs  # type: ignore[assignment]
             policy._last_episode_starts = dones
 

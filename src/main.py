@@ -7,6 +7,9 @@ from rl.callbacks import TensorboardCallback
 from rl.on_policy import learn
 from rl.archirecture import AtariNetExtractor
 from absl import flags, app
+from sb3_contrib.common.maskable.policies import MaskableActorCriticPolicy
+from sb3_contrib.common.wrappers import ActionMasker
+from sb3_contrib.ppo_mask import MaskablePPO
 
 # Load configuration from JSON file
 def load_config(config_file="config.json"):
@@ -24,6 +27,7 @@ def main(argv):
     bot_race = config["bot_race"]
     total_timesteps = config["total_timesteps"]
     log_name = config["log_name"]
+    use_mask = config['use_mask']
 
     # Configure logger
     new_logger = configure("./ppo_run/", ["stdout", "csv", "tensorboard"])
@@ -39,18 +43,29 @@ def main(argv):
         net_arch=dict(pi=[128, 128], vf=[128, 128])  # Two hidden layers of 128 units each for policy and value networks
     )
 
-    # Create the PPO model with the custom extractor and policy
-    model = PPO(
-        policy="MultiInputPolicy",  # Use MultiInputPolicy to handle Dict observation space
-        env=env,  # Your custom environment here
-        policy_kwargs=policy_kwargs,
-        verbose=1, tensorboard_log="./ppo_run/"
-    )
+    if use_mask:
+        def mask_fn(env):
+            return env.valid_action_mask()
 
-    # # Train the agent
-    # model.learn(total_timesteps=200_000)
-    # # Initialize the PPO model
-    # model = PPO("MultiInputPolicy", env, verbose=1, tensorboard_log="./ppo_run/")
+
+        env = ActionMasker(env, mask_fn)  # Wrap to enable masking
+
+        model = MaskablePPO(
+            MaskableActorCriticPolicy, 
+            env, 
+            policy_kwargs=policy_kwargs,
+            verbose=1, 
+            tensorboard_log="./ppo_run/"
+        )
+    
+    # Create the PPO model with the custom extractor and policy
+    else:
+        model = PPO(
+            policy="MultiInputPolicy",  # Use MultiInputPolicy to handle Dict observation space
+            env=env,  # Your custom environment here
+            policy_kwargs=policy_kwargs,
+            verbose=1, tensorboard_log="./ppo_run/"
+        )
 
     # Define the callback for rewards
     rewards_callback = TensorboardCallback()
@@ -62,6 +77,7 @@ def main(argv):
         log_interval=1,
         callback=rewards_callback,
         tb_log_name=log_name,
+        use_masking = use_mask
     )
 
 if __name__ == "__main__":

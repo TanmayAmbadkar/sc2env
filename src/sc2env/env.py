@@ -99,10 +99,8 @@ class SC2GymWrapper(gym.Env):
         }
         self.env = sc2_env.SC2Env(**settings)
         raw_obs = self.env.reset()[0]
-        self.max_units = len(self.get_units(raw_obs))
-        self.action_len = len(self.get_units(raw_obs)[0])
 
-    def reset(self, seed=None):
+    def reset(self, seed=None, options=None):
         if self.env is None:
             self.init_env()
         
@@ -161,6 +159,7 @@ class SC2GymWrapper(gym.Env):
             'screen': screen,
             'minimap': minimap
         }
+    
     def get_non_spatial_features(self, raw_obs):
         """
         Extracts non-spatial features from the raw observation and ensures a consistent observation space
@@ -168,11 +167,6 @@ class SC2GymWrapper(gym.Env):
         """
         
         # Maximum sizes for variable-length features
-        MAX_CONTROL_GROUPS = 10        # Max 10 control groups
-        MAX_AVAILABLE_ACTIONS = 500    # Example, assume max 500 actions could be available
-        MAX_LAST_ACTIONS = 10          # Max number of last actions stored
-        MAX_ALERTS = 2                 # Max 2 alerts
-
         # Player general information (Fixed size array)
         player_info = raw_obs.observation["player"]
         player_features = np.array([
@@ -188,13 +182,7 @@ class SC2GymWrapper(gym.Env):
             player_info[9] if len(player_info) > 9 else 0,  # warp_gate_count (Protoss)
             player_info[10] if len(player_info) > 10 else 0  # larva_count (Zerg)
         ], dtype=np.float32)
-
-        # Control Groups (Fixed to MAX_CONTROL_GROUPS, pad or truncate)
-        control_groups = np.zeros((MAX_CONTROL_GROUPS, 2), dtype=np.float32)  # (unit_type, count)
-        actual_control_groups = raw_obs.observation["control_groups"]
-        for i in range(min(len(actual_control_groups), MAX_CONTROL_GROUPS)):
-            control_groups[i] = actual_control_groups[i]
-
+        
         # Available actions (Padded with 0s or truncated to MAX_AVAILABLE_ACTIONS)
         available_actions = np.zeros(len(self.action_id_func_map), dtype=np.int32)
         try:
@@ -205,58 +193,24 @@ class SC2GymWrapper(gym.Env):
             
             if actual_available_actions[i] in self.action_id_func_map:         
                 available_actions[self.action_id_func_map[actual_available_actions[i]]] = 1
-
-        # Last actions (Padded with 0s or truncated to MAX_LAST_ACTIONS)
-        last_actions = np.zeros(MAX_LAST_ACTIONS, dtype=np.int32)
-        actual_last_actions = raw_obs.observation.get("last_actions", [])
-        for i in range(min(len(actual_last_actions), MAX_LAST_ACTIONS)):
-            last_actions[i] = actual_last_actions[i]
-
-        # Action results (Padded with 0s or truncated to 1, assuming max 1 result)
-        action_result = np.zeros(1, dtype=np.int32)
-        actual_action_result = raw_obs.observation.get("action_result", [])
-        if len(actual_action_result) > 0:
-            action_result[0] = actual_action_result[0]
-
-        # Alerts (Padded with 0s or truncated to MAX_ALERTS)
-        alerts = np.zeros(MAX_ALERTS, dtype=np.int32)
-        actual_alerts = raw_obs.observation.get("alerts", [])
-        for i in range(min(len(actual_alerts), MAX_ALERTS)):
-            alerts[i] = actual_alerts[i]
-
         # Combine all non-spatial features into a dictionary
         non_spatial_features = {
             'player_data': player_features,        # Fixed-size player information
-            # 'control_groups': control_groups,      # Padded/truncated control groups
             'available_actions': available_actions,  # Padded/truncated available actions
-            # 'last_actions': last_actions,          # Padded/truncated last actions
-            # 'action_results': action_result,       # Padded/truncated action result
-            # 'alerts': alerts                       # Padded/truncated alerts
         }
 
+        self.mask = np.concatenate([non_spatial_features['available_actions'], np.ones(64), np.ones(64)])
+        
         return non_spatial_features
 
+    def valid_action_mask(self):
+        
+        return self.mask
 
     def step(self, action):
-        raw_obs = self.take_action(action)
-        
-        if raw_obs is None:
-            reward = -1000
-            obs = self.observation_space.sample()
-            done = True
-            info = {
-                "done": done,
-                "is_success": 0,
-                'enemies_killed': 0,
-                'allies_killed': 0,
-                'remaining_allies': 0,
-                'remaining_enemies': 0,
-                'cumulative_score': -1000
-            }
-            return obs, reward, done, done, info
-
-            
-        reward = raw_obs.reward + raw_obs.observation['score_cumulative'][0]
+        raw_obs, rew_valid = self.take_action(action)
+    
+        reward = raw_obs.reward + raw_obs.observation['score_cumulative'][0] + rew_valid
         obs = self.get_derived_obs(raw_obs)  # Use the structured observation
         done = raw_obs.last()
 
@@ -292,56 +246,10 @@ class SC2GymWrapper(gym.Env):
         return obs, reward, done, done, info
 
     def take_action(self, action):
-        # Map actions dynamically based on context.
-        # if action == 0:
-        #     action_mapped = actions.RAW_FUNCTIONS.no_op()
-        # elif action <= 32:
-        #     direction = np.floor((action - 1) / 8)
-        #     idx = (action - 1) % 8
-        #     if direction == 0:
-        #         action_mapped = self.move_unit(idx, "up")
-        #     elif direction == 1:
-        #         action_mapped = self.move_unit(idx, "down")
-        #     elif direction == 2:
-        #         action_mapped = self.move_unit(idx, "left")
-        #     else:
-        #         action_mapped = self.move_unit(idx, "right")
-        # else:
-        #     attacker_idx = np.floor((action - 33) / 9)
-        #     target_idx = (action - 33) % 9
-        #     action_mapped = self.attack_unit(attacker_idx, target_idx)
-
         
-        action_mapped = self.act_wrapper(action)
-        try:
-            raw_obs = self.env.step(action_mapped)[0]
-        except:
-            raw_obs = None
-        return raw_obs
-
-    def move_unit(self, idx, direction):
-        if idx >= len(self.units):
-            return actions.RAW_FUNCTIONS.no_op()
-
-        unit = self.units[int(idx)]
-        if direction == "up":
-            new_pos = [unit.x, unit.y - 2]
-        elif direction == "down":
-            new_pos = [unit.x, unit.y + 2]
-        elif direction == "left":
-            new_pos = [unit.x - 2, unit.y]
-        else:
-            new_pos = [unit.x + 2, unit.y]
-
-        return actions.RAW_FUNCTIONS.Move_pt("now", unit.tag, new_pos)
-
-    def attack_unit(self, attacker_idx, target_idx):
-        if attacker_idx >= len(self.units) or target_idx >= len(self.units):
-            return actions.RAW_FUNCTIONS.no_op()
-
-        attacker = self.units[int(attacker_idx)]
-        target = self.units[int(target_idx)]
-        return actions.RAW_FUNCTIONS.Attack_unit("now", attacker.tag, target.tag)
+        action_mapped, reward = self.act_wrapper(action, self.valid_action_mask())
+        raw_obs = self.env.step(action_mapped)[0]
+        return raw_obs, reward
 
     def get_units(self, obs, alliance=features.PlayerRelative.SELF):
         # Generic method to fetch units of interest based on alliance
@@ -379,7 +287,7 @@ class ActionWrapper:
         self.func_ids = action_ids
         self.args, self.spatial_dim = args, spatial_dim
 
-    def __call__(self, action):
+    def __call__(self, action, valid_action_mask):
         defaults = {
             'control_group_act': 0,
             'control_group_id': 0,
@@ -392,6 +300,16 @@ class ActionWrapper:
         
         fn_id_idx = action[0]
         args = []
+        
+        reward = 0
+        valid_action_mask = valid_action_mask[:len(self.func_ids)].astype(int)
+        if not valid_action_mask[fn_id_idx]:
+            action[0] = np.random.choice(np.array(self.func_ids)[valid_action_mask])
+            reward = -1000
+            fn_id_idx = action[0]
+        
+        # else:
+        #     print("Valid Action:", fn_id_idx, valid_action_mask)
         
         fn_id = self.func_ids[fn_id_idx]
         for arg_type in actions.FUNCTIONS[fn_id].args:
@@ -407,4 +325,4 @@ class ActionWrapper:
             args.append(arg)
             
 
-        return [actions.FunctionCall(fn_id, args)]
+        return [actions.FunctionCall(fn_id, args)], reward
