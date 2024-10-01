@@ -75,7 +75,7 @@ class SC2GymWrapper(gym.Env):
             'minimap': spaces.Box(low=0, high=255, shape=(7, 64, 64), dtype=np.float32),
         })
         
-        self.action_id_func_map = {action_id: count for action_id, count in enumerate(action_ids)}
+        self.action_id_func_map = {action_id: count for count, action_id in enumerate(action_ids)}
 
         print(self.observation_space)
         print(self.action_space)
