@@ -2,7 +2,7 @@
     "map_name": "Bridges2",
     "player_race": "terran",
     "bot_race": "terran",
-    "total_timesteps": 1000000,
+    "total_timesteps": 70000000,
     "use_mask": true
   }
   

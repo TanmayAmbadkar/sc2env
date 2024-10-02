@@ -19,9 +19,9 @@ class AtariNetExtractor(BaseFeaturesExtractor):
         # CNN for screen input
         n_input_channels_screen = observation_space['screen'].shape[0]
         self.screen_cnn = nn.Sequential(
-            nn.Conv2d(n_input_channels_screen, 32, kernel_size=8, stride=4, padding=0),
+            nn.Conv2d(n_input_channels_screen, 16, kernel_size=8, stride=4, padding=0),
             nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=0),
+            nn.Conv2d(16, 32, kernel_size=4, stride=2, padding=0),
             nn.ReLU(),
             nn.Flatten(),
         )
@@ -29,9 +29,9 @@ class AtariNetExtractor(BaseFeaturesExtractor):
         # CNN for minimap input
         n_input_channels_minimap = observation_space['minimap'].shape[0]
         self.minimap_cnn = nn.Sequential(
-            nn.Conv2d(n_input_channels_minimap, 32, kernel_size=8, stride=4, padding=0),
+            nn.Conv2d(n_input_channels_minimap, 16, kernel_size=8, stride=4, padding=0),
             nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=0),
+            nn.Conv2d(16, 32, kernel_size=4, stride=2, padding=0),
             nn.ReLU(),
             nn.Flatten(),
         )
@@ -40,14 +40,14 @@ class AtariNetExtractor(BaseFeaturesExtractor):
         n_input_non_spatial = observation_space['player_data'].shape[0]
         self.non_spatial_fc = nn.Sequential(
             nn.Linear(n_input_non_spatial, 64),
-            nn.ReLU(),
+            nn.Tanh(),
         )
         
         # Fully connected layer for available actions (size will be number of actions)
         n_input_available_actions = observation_space['available_actions'].shape[0]
         self.available_actions_fc = nn.Sequential(
             nn.Linear(n_input_available_actions, 64),
-            nn.ReLU(),
+            nn.Tanh(),
         )
         
         # Compute the number of features extracted by CNNs (screen and minimap) and FC layers

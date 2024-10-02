@@ -230,12 +230,11 @@ class SC2GymWrapper(gym.Env):
 
         # Determine win/loss based on game status
         win = True if raw_obs.reward > 0 else False
-        loss = 1 if done and raw_obs.reward <= 0 else 0
 
         # Info dictionary containing the statistics
         info = {
             "done": done,
-            "is_success": win,
+            "is_success": raw_obs.reward,
             'enemies_killed': enemies_killed,
             'allies_killed': allies_killed,
             'remaining_allies': len(current_allies),

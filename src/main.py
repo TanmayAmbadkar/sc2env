@@ -55,7 +55,9 @@ def main(argv):
             env, 
             policy_kwargs=policy_kwargs,
             verbose=1, 
-            tensorboard_log="./ppo_run/"
+            tensorboard_log="./ppo_run/",
+            learning_rate=0.00001,
+            n_epochs=8
         )
     
     # Create the PPO model with the custom extractor and policy
@@ -64,7 +66,8 @@ def main(argv):
             policy="MultiInputPolicy",  # Use MultiInputPolicy to handle Dict observation space
             env=env,  # Your custom environment here
             policy_kwargs=policy_kwargs,
-            verbose=1, tensorboard_log="./ppo_run/"
+            verbose=1, tensorboard_log="./ppo_run/",
+            learning_rate=0.00001
         )
 
     # Define the callback for rewards
@@ -79,6 +82,9 @@ def main(argv):
         tb_log_name=log_name,
         use_masking = use_mask
     )
+    
+    
+    model.save(log_name)
 
 if __name__ == "__main__":
     # Run the main function

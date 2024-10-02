@@ -12,7 +12,7 @@ if __name__ == "__main__":
     FLAGS = flags.FLAGS
     FLAGS(sys.argv)
 
-    env_config = {'map_name': "Simple64", "player_race": "terran", "bot_race": "random", "bot_difficulty":"easy"}
+    env_config = {'map_name': "Bridges2", "player_race": "terran", "bot_race": "terran", "bot_difficulty":"easy"}
     # env = SC2GymWrapper(map_name="Simple64", player_race="terran", bot_race="random")
     ray.init()
     algo = ppo.PPO(env=SC2GymWrapperRllib, config={
