@@ -37,13 +37,14 @@ def convert_to_difficulty(difficulty_str):
 class SC2GymWrapper(gym.Env):
     metadata = {'render.modes': ['human']}
     
-    def __init__(self, map_name="DefeatZerglingsAndBanelings", player_race=sc2_env.Race.terran, bot_race=sc2_env.Race.zerg, bot_difficulty=sc2_env.Difficulty.hard, **kwargs):
+    def __init__(self, map_name="DefeatZerglingsAndBanelings", player_race=sc2_env.Race.terran, bot_race=sc2_env.Race.zerg, bot_difficulty=sc2_env.Difficulty.hard, reward_shaping = {}, **kwargs):
         super().__init__()
         self.map_name = map_name
         self.player_race = player_race
         self.bot_race = bot_race
         self.bot_difficulty = bot_difficulty
         self.env = None
+        self.reward_shaping = reward_shaping
         
         self.init_env()
         
@@ -211,7 +212,7 @@ class SC2GymWrapper(gym.Env):
     def step(self, action):
         raw_obs, rew_valid = self.take_action(action)
     
-        reward = raw_obs.reward + (raw_obs.observation['score_cumulative'][0] - self.last_score) + rew_valid
+        reward = self.reward_computation(raw_obs, rew_valid)
         self.last_score = raw_obs.observation['score_cumulative'][0]
         obs = self.get_derived_obs(raw_obs)  # Use the structured observation
         done = raw_obs.last()
@@ -223,14 +224,8 @@ class SC2GymWrapper(gym.Env):
         allies_killed = len(self.previous_allies) - len(current_allies)
         enemies_killed = len(self.previous_enemies) - len(current_enemies)
 
-        # Update previous unit lists for next step comparison
-        # self.previous_allies = current_allies
-        # self.previous_enemies = current_enemies
-        
-
-        # Determine win/loss based on game status
-        win = True if raw_obs.reward > 0 else False
-
+        if done:
+            reward+= enemies_killed - allies_killed
         # Info dictionary containing the statistics
         info = {
             "done": done,
@@ -245,6 +240,19 @@ class SC2GymWrapper(gym.Env):
         self.info = info
 
         return obs, reward, done, done, info
+
+    def reward_computation(self, raw_obs, rew_valid):
+        
+        reward = (raw_obs.observation['score_cumulative'][0] - self.last_score) + rew_valid
+        
+        for key, value in self.reward_shaping:
+            reward += value*raw_obs.observation[key]
+            
+        if raw_obs.last():
+            reward += raw_obs.reward*10 if raw_obs.reward != 0 else 5
+        
+        return reward
+        
 
     def take_action(self, action):
         
