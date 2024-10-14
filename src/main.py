@@ -71,7 +71,7 @@ def main(argv):
         )
 
     # Define the callback for rewards
-    rewards_callback = TensorboardCallback()
+    rewards_callback = TensorboardCallback(log_name = log_name)
 
     # Start the learning process with the specified total timesteps
     learn(
@@ -84,7 +84,9 @@ def main(argv):
     )
     
     
-    model.save(log_name)
+    model.save("models/" + log_name)
+    
+    
 
 if __name__ == "__main__":
     # Run the main function

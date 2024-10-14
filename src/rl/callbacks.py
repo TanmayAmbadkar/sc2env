@@ -4,8 +4,10 @@ class TensorboardCallback(BaseCallback):
     Custom callback for plotting additional values in tensorboard.
     """
 
-    def __init__(self, verbose=0):
+    def __init__(self, verbose=0, log_name=None):
         super().__init__(verbose)
+        self.log_name = log_name
+        self.update_number = 0
 
     def _on_step(self) -> bool:
         try:
@@ -31,3 +33,16 @@ class TensorboardCallback(BaseCallback):
         
         
         return True
+    def on_rollout_end(self):
+        
+        env = self.training_env
+        obs = env.reset()
+        while True:
+            
+            action, _states = self.model.predict(obs)
+            obs, reward, terminated, info = env.step(action)
+            if terminated:
+                break
+        
+        env.env_method("save_replay", f"replays/{self.logger.get_dir()}", f"replay_{self.update_number}")
+        self.update_number+=1

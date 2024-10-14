@@ -111,6 +111,8 @@ class SC2GymWrapper(gym.Env):
         self.previous_enemies = self.get_units(raw_obs, features.PlayerRelative.ENEMY)
         self.last_score = raw_obs.observation['score_cumulative'][0]
         
+        self.enemies_killed = 0
+        self.allies_killed = 0
         # Return the structured observation
         return self.get_derived_obs(raw_obs), {}
 
@@ -162,6 +164,10 @@ class SC2GymWrapper(gym.Env):
             'minimap': minimap
         }
     
+    def save_replay(self, replay_dir, prefix):
+        if self.env is not None:
+            self.env.save_replay(replay_dir, prefix)
+            
     def get_non_spatial_features(self, raw_obs):
         """
         Extracts non-spatial features from the raw observation and ensures a consistent observation space
@@ -224,8 +230,12 @@ class SC2GymWrapper(gym.Env):
         allies_killed = len(self.previous_allies) - len(current_allies)
         enemies_killed = len(self.previous_enemies) - len(current_enemies)
 
-        if done:
-            reward+= enemies_killed - allies_killed
+        # if done:
+        reward+= (enemies_killed - self.enemies_killed)/5 - (allies_killed - self.allies_killed)/5
+        
+        self.enemies_killed = enemies_killed
+        self.allies_killed = allies_killed
+        
         # Info dictionary containing the statistics
         info = {
             "done": done,

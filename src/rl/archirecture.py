@@ -73,9 +73,9 @@ class AtariNetExtractor(BaseFeaturesExtractor):
         non_spatial_features = self.non_spatial_fc(observations['player_data'])
         available_actions_features = self.available_actions_fc(observations['available_actions'])
 
-        screen_features = th.log(screen_features)
-        minimap_features = th.log(minimap_features)
-        non_spatial_features = th.log(non_spatial_features)
+        # screen_features = 1/(1 + th.exp(screen_features))
+        # minimap_features = 1/1 + th.log(minimap_features)
+        # non_spatial_features = th.log(non_spatial_features)
         # Concatenate all features
         concatenated_features = th.cat([screen_features, minimap_features, non_spatial_features, available_actions_features], dim=1)
         
