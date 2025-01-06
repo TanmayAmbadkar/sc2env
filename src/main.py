@@ -74,17 +74,31 @@ def main(argv):
     rewards_callback = TensorboardCallback()
 
     # Start the learning process with the specified total timesteps
-    learn(
-        model,
-        total_timesteps=total_timesteps,
-        log_interval=1,
-        callback=rewards_callback,
-        tb_log_name=log_name,
-        use_masking = use_mask
-    )
+    # learn(
+    #     model,
+    #     total_timesteps=total_timesteps,
+    #     log_interval=1,
+    #     callback=rewards_callback,
+    #     tb_log_name=log_name,
+    #     use_masking = use_mask
+    # )
     
     
-    model.save(log_name)
+    
+    # model.save(log_name)
+    
+    model = MaskablePPO.load("models/ppo_Bridges2_300000")
+    obs, _ = env.reset()
+    while True:
+        # Retrieve current action mask
+        action, _states = model.predict(obs)
+        obs, reward, terminated, truncated, info = env.step(action)
+        if terminated or truncated:
+            # obs, _ = env.reset()
+            break
+    
+    env.save_replay("replays", "ppo_Bridges2_300000")
+
 
 if __name__ == "__main__":
     # Run the main function

@@ -5,5 +5,4 @@ __pycache__/
 ppo_run
 # C extensions
 *.so
-
-
+models

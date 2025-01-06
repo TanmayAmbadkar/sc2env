@@ -100,6 +100,10 @@ class SC2GymWrapper(gym.Env):
         }
         self.env = sc2_env.SC2Env(**settings)
         raw_obs = self.env.reset()[0]
+        
+    def save_replay(self, replay_dir):
+        if self.env is not None:
+            self.env.save_replay(replay_dir)
 
     def reset(self, seed=None, options=None):
         if self.env is None:
